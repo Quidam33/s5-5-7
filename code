@@ -1,0 +1,22 @@
+                  select distinct
+                        q.object_id order_key,
+                        q.order_status,
+                        dr.id restaurant_id,
+                        dt.id timestamp_id,
+                        du.id user_id,
+                        q.id
+                    from
+                    (select id,
+                    object_id,
+                    object_value::JSON->>'final_status' order_status,
+                    TO_TIMESTAMP(object_value::JSON->>'date',  'YYYY-MM-DD HH24:MI:SS:MS') date_ord,
+                    (object_value::JSON->>'user')::JSON->>'id' user_ord,
+                    json_array_elements((object_value::JSON->'order_items')::JSON)->>'id' product_id
+                    from stg.ordersystem_orders oo ) q
+                    inner join dds.dm_products dp  on dp.product_id = q.product_id
+                    inner join dds.dm_restaurants dr on dr.id = dp.restaurant_id 
+                    inner join dds.dm_timestamps dt on dt.ts = q.date_ord
+                    inner join dds.dm_users du on du.user_id = q.user_ord
+                    WHERE q.id > %(threshold)s 
+                    ORDER BY q.id ASC 
+                    LIMIT %(limit)s; 
